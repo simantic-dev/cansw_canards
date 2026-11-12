@@ -1,0 +1,21 @@
+# Scenario for `pio run -e <env> -t sim`. scripts/run_sim.py replaces "@ELF@" with the env's
+# firmware.elf and copies this directory beside the peers before running pyrite.
+machines:
+  dut:
+    mcu: STM32H733VG
+    elf: "@ELF@"
+    overlay: hse4.board
+    parts:
+      - { name: card,    type: sd-card,    bus: sdmmc2, size: 16MiB }
+      - { name: motor,   type: can-node,   script: ak45_peer.py }
+      - { name: bus,     type: can-node,   script: rocketcan_peer.py }
+      - { name: ground,  type: can-node,   script: ground_peer.py }
+      - { name: imu,     type: i2c-device, bus: i2c1, address: 0x6A, irq: "PD7",  script: lsm6dsv32x_peer.py }
+      - { name: mag,     type: i2c-device, bus: i2c4, address: 0x1E, irq: "PE0",  script: iis2mdc_peer.py }
+      - { name: baro,    type: i2c-device, bus: i2c5, address: 0x77,              script: ms5611_peer.py }
+      - { name: adc,     type: i2c-device, bus: i2c2, address: 0x40, irq: "PE12", script: ads1219_peer.py }
+      - { name: movella, type: uart-device, baud: 2000000, script: movella_peer.py }
+media:
+  - { type: can,  connect: [dut.fdcan1, dut.motor] }             # AK45 servo, 1 Mbit
+  - { type: can,  connect: [dut.fdcan3, dut.bus, dut.ground] }   # RocketCAN, 250 kbit
+  - { type: uart, connect: [dut.usart3, dut.movella] }           # Movella MTi, 2 Mbaud
