@@ -42,7 +42,7 @@ class Node:
         if self.pos_count == 1:
             self.ctx.info(f"SET_POS {deg:.2f} deg at {self.ctx.now_us / 1e6:.3f} s")
             self.pos_report_us = self.ctx.now_us
-        elif self.ctx.now_us - self.pos_report_us >= 1_000_000:
-            # one line per second, not per command: the board sends at its loop rate
+        elif self.ctx.now_us - self.pos_report_us >= 2_000_000:
+            # one line every 2 s, not per command: the board sends at its loop rate
             self.pos_report_us = self.ctx.now_us
-            self.ctx.info(f"SET_POS count {self.pos_count}, latest {deg:.2f} deg")
+            self.ctx.info(f"SET_POS count {self.pos_count}, latest {deg:.2f} deg at {self.ctx.now_us / 1e6:.3f} s")

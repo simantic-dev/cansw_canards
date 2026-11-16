@@ -64,10 +64,14 @@ class Slave:
         self.d2 = 0
         self.logged_prom = False
         self.logged_flight = False
+        self.conv = 0  # last conversion the driver started: 0x40 pressure or 0x50 temperature
+        self.next_log_us = 0
 
     def on_write(self, data):
         self.cmd = data[0]
         t = self.ctx.now_us / 1e6
+        if self.cmd & 0xF0 in (0x40, 0x50):
+            self.conv = self.cmd & 0xF0
         if self.cmd & 0xF0 == 0x50:  # D2: temperature, latched for the next ADC read
             # shortcut: OSR ignored (no quantisation noise), conversion time not modelled
             self.d2 = invert(lambda d: compensate(0, d)[0], round(flight.temperature_c(t) * 100))
@@ -84,6 +88,13 @@ class Slave:
         cmd = self.cmd
         if cmd == 0x00:  # ADC read: last conversion, 3 bytes big-endian
             out = self.adc
+            now = self.ctx.now_us
+            if self.conv == 0x40 and now >= self.next_log_us:
+                # decode what the firmware just read: D1 with the D2 it read, through the driver's formula
+                p = compensate(int.from_bytes(out, "big"), self.d2)[1]
+                alt = (1.0 - (p / 101325.0) ** (1 / 5.25588)) / 2.25577e-5  # inverse of flight.pressure_pa
+                self.next_log_us = now + 2_000_000
+                self.ctx.info(f"firmware read {p} Pa = {alt:.0f} m altitude at {now / 1e6:.3f} s")
         elif 0xA0 <= cmd <= 0xAE:  # PROM word 0..7, 2 bytes big-endian
             addr = (cmd - 0xA0) >> 1
             out = PROM_WORDS[addr].to_bytes(2, "big")

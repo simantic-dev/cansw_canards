@@ -47,7 +47,7 @@ class Node:
             # no state message exists: the controller's telemetry only runs in PAD_NAV, BOOST and
             # ACT_ALLOWED, so its first frame marks the FSM leaving PAD_FILTER
             self.ctrl_logged = True
-            self.ctx.info("canards ctrl telemetry started (FSM past PAD_FILTER)")
+            self.ctx.info(f"canards ctrl telemetry started at {self.ctx.now_us / 1e6:.3f} s (FSM past PAD_FILTER)")
         if mtype not in self.seen:
             self.seen.add(mtype)
             name = TYPE_NAMES.get(mtype, f"MSG type 0x{mtype:02x}")

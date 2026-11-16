@@ -6,18 +6,35 @@ In 2024-25, this project was firmware for Processor Board in the first canards s
 ## Run it on a simulated board
 
 ```sh
-git clone --recurse-submodules https://github.com/simantic-dev/cansw_canards && cd cansw_canards && ./demo
+git clone --recurse-submodules https://github.com/simantic-dev/cansw_canards && cd cansw_canards
+pio run -e release_board_2_ad_09590    # once, separate step: builds the release board 2 firmware
+./demo                                 # boots it on the simulated STM32H733 and prints the flight timeline (about 60 s wall)
 ```
 
-You need PlatformIO and `sim` on your `PATH` (or `PYRITE_SIM=/path/to/sim`):
+![Flight timeline from the simulated canards run](media/canards-demo.gif)
 
-```sh
-curl -fsSL https://simantic.com/install | sh
+```mermaid
+flowchart LR
+  mcu["STM32H733VG<br/>canards firmware (unmodified, release board 2)"]
+  motor(["AK45 servo<br/>ak45_peer.py"]) -- "FDCAN1 1 Mbit: SET_POS canard angle" --- mcu
+  bus(["RocketCAN listener<br/>rocketcan_peer.py"]) -- "FDCAN3 250 kbit: board status, sensor frames" --- mcu
+  ground(["Ground station<br/>ground_peer.py"]) -- "FDCAN3: pad filter, ox injector valve" --- mcu
+  card(["SD card<br/>16 MiB blank"]) -- "SDMMC2: logs" --- mcu
+  imu(["IMU LSM6DSV32X<br/>lsm6dsv32x_peer.py"]) -- "I2C1 0x6A: accel/gyro, INT PD7" --- mcu
+  mag(["Magnetometer IIS2MDC<br/>iis2mdc_peer.py"]) -- "I2C4 0x1E: field, INT PE0" --- mcu
+  baro(["Barometer MS5611<br/>ms5611_peer.py"]) -- "I2C5 0x77: PROM, D1 pressure, D2 temp" --- mcu
+  adc(["ADC ADS1219<br/>ads1219_peer.py"]) -- "I2C2 0x40: analog channels, INT PE12" --- mcu
+  movella(["Movella MTi<br/>movella_peer.py"]) -- "USART3 2 Mbaud: MTData2 at 200 Hz" --- mcu
 ```
 
-![canards boot in the simulator](media/canards-flight.gif)
-
-The unedited firmware for the release board 2 build (FreeRTOS on an STM32H733) boots in pyrite, the Simantic simulator, with the AK45 servo, IMU, magnetometer, barometer, ADC, Movella MTi and RocketCAN all on its pins. The peers are Python scripts in `sim/`: the ground station arms the pad filter at 1.5 s and opens the injector at 2.5 s, and the flight is 1-D vertical kinematics with no drag. The firmware prints no state changes, so the GIF shows what the bus shows: the controller telemetry starting, then canard commands at 20 deg. Timing and sensor values are not measured against hardware. Pyrite is a proprietary simulator, not open source; see `sim/README.md`.
+The unedited firmware (FreeRTOS on the STM32H733) boots in Simantic's simulator, `sim`, with the AK45 servo, IMU,
+magnetometer, barometer, ADC, Movella MTi and RocketCAN all on its pins. The peers are Python scripts in `sim/`,
+modelled at transaction level (the bytes on each bus, not electrical behaviour). The flight in `sim/flight.py` is
+1-D vertical kinematics with no drag: the ground peer opens the injector at 2.5 s, and the altitude in the
+timeline is decoded by the barometer peer from the pressure bytes the firmware reads back. The injector line is
+the ground peer's command on the bus, not a firmware acknowledgement. Install `sim` 0.10.0 or newer with
+`curl -fsSL https://simantic.com/install | sh`; PlatformIO is needed for the build. Timing and sensor values are
+not measured against hardware, and `sim` is proprietary, not open source; see `sim/README.md`.
 
 ## Project Structure
 
