@@ -1,0 +1,9 @@
+# One canard board (STM32H723, release_board_1_ad_09590 image) with its servo and the rocket CAN bus.
+machines:
+  canard: { mcu: STM32H723VG, elf: build/canard.elf, overlay: canard.board }
+media:
+  - type: can
+    connect: [canard.fdcan1, canard.motor]
+  - type: can
+    connect: [canard.fdcan3, canard.ground]
+timeout: 14
