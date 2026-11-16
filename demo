@@ -1,0 +1,6 @@
+#!/bin/sh
+# Boots the canards firmware on pyrite (simulated STM32H733) with the peers in sim/. Usage: ./demo
+# Needs PlatformIO and `sim` on PATH (or PYRITE_SIM=/path/to/sim); builds the firmware first.
+cd "$(dirname "$0")"
+pio run -e release_board_2_ad_09590 -t sim 2>&1 \
+  | grep --line-buffered -E 'pad filter|ox injector|in-flight|ctrl telemetry|latest 20|sim:|Elapsed'

@@ -3,6 +3,22 @@
 Firmware for 2025-27 Canard Board, performing state estimation and control for the 2nd & 3rd iteration of the canards system. Project documentation can be found in the team Google Drive.
 In 2024-25, this project was firmware for Processor Board in the first canards system
 
+## Run it on a simulated board
+
+```sh
+git clone --recurse-submodules https://github.com/simantic-dev/cansw_canards && cd cansw_canards && ./demo
+```
+
+You need PlatformIO and `sim` on your `PATH` (or `PYRITE_SIM=/path/to/sim`):
+
+```sh
+curl -fsSL https://simantic.com/install | sh
+```
+
+![canards boot in the simulator](media/canards-flight.gif)
+
+The unedited firmware for the release board 2 build (FreeRTOS on an STM32H733) boots in pyrite, the Simantic simulator, with the AK45 servo, IMU, magnetometer, barometer, ADC, Movella MTi and RocketCAN all on its pins. The peers are Python scripts in `sim/`: the ground station arms the pad filter at 1.5 s and opens the injector at 2.5 s, and the flight is 1-D vertical kinematics with no drag. The firmware prints no state changes, so the GIF shows what the bus shows: the controller telemetry starting, then canard commands at 20 deg. Timing and sensor values are not measured against hardware. Pyrite is a proprietary simulator, not open source; see `sim/README.md`.
+
 ## Project Structure
 
 - `src/drivers/`: custom peripheral driver modules
