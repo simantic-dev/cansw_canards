@@ -1,3 +1,5 @@
+> **[Simantic](https://simantic.com)** runs this firmware on simulated hardware, no board needed. Try it at [simantic.com](https://simantic.com).
+
 ## This fork: the canard board in a simulator
 
 Simantic's fork of Waterloo Rocketry's canard board firmware, with a `sim/` directory that runs the **unmodified production image** (`release_board_1_ad_09590`, STM32H723, FreeRTOS) in the Simantic simulator. Based on upstream `main` at `939ccecf`. Nothing here is offered to or published at upstream; only `sim/` and this section are added.
