@@ -1,84 +1,40 @@
-## This fork: the canard board in a simulator
-
-Simantic's fork of Waterloo Rocketry's canard board firmware, with a `sim/` directory that runs the **unmodified production image** (`release_board_1_ad_09590`, STM32H723, FreeRTOS) in the Simantic simulator. Based on upstream `main` at `939ccecf`. Nothing here is offered to or published at upstream; only `sim/` and this section are added.
-**Licence:** the repository is GPL-3.0 (`LICENSE.md`); the files under `sim/` are added under the same licence.
-
-**What runs** (`sim` 0.10.0 build f219eb31, 2026-11-16, 22 s of virtual time, 65 s of wall time):
-
-| Part | Model | Result |
-| --- | --- | --- |
-| Canard board | STM32H723VG, 4 MHz HSE as in the `.ioc` | boots, FreeRTOS tasks run, FDCAN3 broadcasts health and telemetry frames |
-| LSM6DSV32X IMU (I2C1), MS5611 baro (I2C5), IIS2MDC mag (I2C4) | Python peers in `sim/peers/` | IMU and baro modules stop reporting errors; the firmware's accel and gyro telemetry follow the peer's profile |
-| AK45 servo (FDCAN1) | Python peer, fixed slew rate | receives the firmware's position commands (4602 by 22 s), answers with feedback |
-| Ground node (FDCAN3) | Python peer | logs every frame; sends the pad-filter and ignition commands at 1.5 s and 2.0 s |
-| SD card (SDMMC2) | blank 64 MB card | boot proceeds; the logger cannot write (no filesystem, see gaps) |
-
-**Scenario** (`sim graph --scenario sim/scenario.yaml`):
-
-```mermaid
-flowchart LR
-  canard["canard<br/>STM32H723VG"]
-  canard_card(["card<br/>SD.SDCard"])
-  canard -- "sdmmc2" --- canard_card
-  canard_motor(["motor<br/>CAN.ScriptedCanNode"])
-  canard_ground(["ground<br/>CAN.ScriptedCanNode"])
-  canard_imu(["imu<br/>I2C.ScriptedI2cSlave"])
-  canard -- "i2c1 0x6a" --- canard_imu
-  canard_mag(["mag<br/>I2C.ScriptedI2cSlave"])
-  canard -- "i2c4 0x1e" --- canard_mag
-  canard_baro(["baro<br/>I2C.ScriptedI2cSlave"])
-  canard -- "i2c5 0x77" --- canard_baro
-  canard_drdy(["drdy<br/>Scripted.ScriptedGpioPeer"])
-  canard -- "sysbus" --- canard_drdy
-  medium0{{"can"}}
-  canard -- "fdcan1" --- medium0
-  canard_motor --- medium0
-  medium1{{"can"}}
-  canard -- "fdcan3" --- medium1
-  canard_ground --- medium1
-```
-
-**Run data** (`sim/screenshots/signals.png`, drawn by `sim/plot.py` from the run's own `can3.csv` and `servo.csv`; canard board, `release_board_1_ad_09590`, sim 0.10.0 build f219eb31, 22 s virtual). The IMU peer plays a stand-in profile: 1 g on the pad, 5 g for 3 s from t=3 s, then 40 deg/s roll. The top two panels are what the firmware itself reported over CAN; the bottom panel is the controller's command angle (CAN) and the servo peer's position.
-
-![signals](sim/screenshots/signals.png)
-
-What the plot shows: the IMU readings arrive in the firmware's telemetry on the board's y axis (the driver remaps axes); the controller commands the servo only from 16.955 s to 18.74 s, first -20 deg then +20 deg, and 0 otherwise. Why it commands that, and whether its estimator is meaningful with no Movella unit attached, is `unverified`.
-
-**Configurations tried:**
-
-| Configuration | Virtual | Wall | Result |
-| --- | --- | --- | --- |
-| Bare ELF, no board file | 12 s | 0.3 s | stops in `Error_Handler` (PC 0x0800b362) after the SDMMC2 init (no card present); no CAN, no UART output |
-| + blank SD card, 4 MHz HSE, no CAN medium | 3 s | 0.8 s | runs past init; nothing observable without a bus |
-| + servo and ground CAN peers, no sensor peers | 12 s | 21.5 s | 559 frames on FDCAN3; every module reports severity ERROR |
-| + IMU, baro, mag peers, data-ready strobes, ground commands | 22 s | 65 s | IMU and baro modules clear; telemetry follows the profile; controller commands 16.955 s to 18.74 s |
-
-**Gaps, with the evidence** (health frames, message type 0x18, severity 1 = error, on FDCAN3 in a 14 s run; causes not investigated, `unverified`):
-- Movella (module 0x0D, bitfield 0x00000040), ADXL380 (0x01) and ADXRS649 (0x02): no peers for the Movella UART or the AD breakout board.
-- AK45 (0x03, 0x00004000) reports an error although the servo peer answers.
-- IIS2MDC (0x0A, 0x01010000) stays in error with the mag peer attached; not investigated.
-- SD card (0x11) and logger (0x0B): the blank card has no filesystem, so no logs are written.
-- Power handler (0x10, 0x00000007): no rail monitor peers.
-- Only the fixed stand-in profile is exercised: no physics, no noise. The firmware's own bench or flight logs were not replayed.
-
-**Run it** (needs `sim`, PlatformIO, Python 3.12+):
-
-```sh
-sim/build.sh                  # builds release_board_1_ad_09590, copies the ELF to sim/build/
-sim/run.sh 22                 # 22 s virtual; writes sim/out/can3.csv, servo.csv, sim.log
-python3 sim/plot.py "title"   # optional, needs matplotlib
-```
-
-**Changes to the firmware:** none.
-
-Everything below is Waterloo Rocketry's README.
-
----
-
 # Canard Board Firmware
 
 Firmware for 2025-27 Canard Board, performing state estimation and control for the 2nd & 3rd iteration of the canards system. Project documentation can be found in the team Google Drive.
 In 2024-25, this project was firmware for Processor Board in the first canards system
+
+## Run it on a simulated board
+
+```sh
+git clone --recurse-submodules https://github.com/simantic-dev/cansw_canards && cd cansw_canards
+pio run -e release_board_2_ad_09590    # once, separate step: builds the release board 2 firmware
+./demo                                 # boots it on the simulated STM32H733 and prints the flight timeline (about 60 s wall)
+```
+
+![Flight timeline from the simulated canards run](media/canards-demo.gif)
+
+```mermaid
+flowchart LR
+  mcu["STM32H733VG<br/>canards firmware (unmodified, release board 2)"]
+  motor(["AK45 servo<br/>ak45_peer.py"]) -- "FDCAN1 1 Mbit: SET_POS canard angle" --- mcu
+  bus(["RocketCAN listener<br/>rocketcan_peer.py"]) -- "FDCAN3 250 kbit: board status, sensor frames" --- mcu
+  ground(["Ground station<br/>ground_peer.py"]) -- "FDCAN3: pad filter, ox injector valve" --- mcu
+  card(["SD card<br/>16 MiB blank"]) -- "SDMMC2: logs" --- mcu
+  imu(["IMU LSM6DSV32X<br/>lsm6dsv32x_peer.py"]) -- "I2C1 0x6A: accel/gyro, INT PD7" --- mcu
+  mag(["Magnetometer IIS2MDC<br/>iis2mdc_peer.py"]) -- "I2C4 0x1E: field, INT PE0" --- mcu
+  baro(["Barometer MS5611<br/>ms5611_peer.py"]) -- "I2C5 0x77: PROM, D1 pressure, D2 temp" --- mcu
+  adc(["ADC ADS1219<br/>ads1219_peer.py"]) -- "I2C2 0x40: analog channels, INT PE12" --- mcu
+  movella(["Movella MTi<br/>movella_peer.py"]) -- "USART3 2 Mbaud: MTData2 at 200 Hz" --- mcu
+```
+
+The unedited firmware (FreeRTOS on the STM32H733) boots in Simantic's simulator, `sim`, with the AK45 servo, IMU,
+magnetometer, barometer, ADC, Movella MTi and RocketCAN all on its pins. The peers are Python scripts in `sim/`,
+modelled at transaction level (the bytes on each bus, not electrical behaviour). The flight in `sim/flight.py` is
+1-D vertical kinematics with no drag: the ground peer opens the injector at 2.5 s, and the altitude in the
+timeline is decoded by the barometer peer from the pressure bytes the firmware reads back. The injector line is
+the ground peer's command on the bus, not a firmware acknowledgement. Install `sim` 0.10.0 or newer with
+`curl -fsSL https://simantic.com/install | sh`; PlatformIO is needed for the build. Timing and sensor values are
+not measured against hardware, and `sim` is proprietary, not open source; see `sim/README.md`.
 
 ## Project Structure
 

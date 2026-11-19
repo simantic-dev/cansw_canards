@@ -1,0 +1,7 @@
+#!/bin/sh
+# Boots the canards firmware on pyrite (simulated STM32H733) with the peers in sim/, then prints the flight
+# timeline the bus shows: pad filter, injector, baro altitude the firmware read, canard angle commands.
+# Usage: ./demo.  Needs PlatformIO and `sim` on PATH (or PYRITE_SIM=/path/to/sim); build with `pio run -e release_board_2_ad_09590` first.
+cd "$(dirname "$0")"
+pio run -e release_board_2_ad_09590 -t sim 2>&1 \
+  | grep --line-buffered -E '\[ground\] (pad filter|ox injector|canards ctrl)|\[baro\] (firmware read|first in-flight)|\[motor\] SET_POS'

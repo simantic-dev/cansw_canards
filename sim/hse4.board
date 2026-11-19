@@ -1,0 +1,3 @@
+// Canards board: 4 MHz HSE in bypass (CubeMX RCC_HSE_BYPASS).
+rcc:
+    hseFrequency: 4000000
