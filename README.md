@@ -51,6 +51,8 @@ flowchart LR
 
 *Same run re-measured on `sim` 0.10.8 (build 64f89c38), 2026-11-25, 22 s of virtual time, 115 s of wall time on a loaded laptop (about 5 s per virtual second). Drawn from `sim/out/can3.csv` and `servo.csv` by `sim/make_gif.py`.*
 
+The GIF shows the flight-phase FSM (`fsm_state_t`): IDLE, PAD_FILTER 1.501 s, PAD_NAV 2.001 s, BOOST 3.011 s (launch-accel event), ACT_ALLOWED 10.011 s (7 s actuation delay). No CAN frame carries the state, so it is read from the arguments of `flight_phase_update_state` with `--trace-symbol` (see the header of `sim/make_gif.py` for the command). 10 firmware modules report severity ERROR on 0x18 for the whole run (no peer models their hardware, e.g. ADXL380, SD card, Movella); that is a model gap, not a finding about the firmware.
+
 What the plot shows: the IMU readings arrive in the firmware's telemetry on the board's y axis (the driver remaps axes); the controller commands the servo only from 16.955 s to 18.74 s, first -20 deg then +20 deg, and 0 otherwise. Why it commands that, and whether its estimator is meaningful with no Movella unit attached, is `unverified`.
 
 **Configurations tried:**
